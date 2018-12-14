@@ -7,16 +7,6 @@ import time
 配置域名
 配置线程数
 '''
-
-'''
-        self.que=que
-
-        self.deep=deep
-
-        self.domain=domain
-
-        self.threadsNum=threadsNum
-'''
 class SpiderConfig:
 
     def __init__(self):
@@ -36,7 +26,20 @@ class SpiderConfig:
 
         self.threadspool=[]
 
-    def addthread(self,thread):
+        self.proxy=''
+
+        self.savefile=open('savefile.txt','a+')
+
+        self.proxyswitch=False
+
+
+    def setproxyswitch(self,bol):
+        self.proxyswitch=bol
+
+    def setproxy(self,proxy):
+        self.proxy=proxy
+
+    def addthread(self,thread):#添加一个线程
         self.threadspool.append(thread)
 
     def setfinishedtime(self,finishedtime):
@@ -79,4 +82,12 @@ class SpiderConfig:
     def getthreadsNum(self):
         return self.threadsNum
 
+    def getproxy(self):
+        return self.proxy
+
+    def getsavefile(self):
+        return self.savefile
+
+    def getproxystatus(self):
+        return self.proxyswitch
 
