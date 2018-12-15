@@ -32,6 +32,8 @@ class SpiderConfig:
 
         self.proxyswitch=False
 
+        self.similar_set=set()
+
 
     def setproxyswitch(self,bol):
         self.proxyswitch=bol

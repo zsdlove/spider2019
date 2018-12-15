@@ -6,7 +6,10 @@ from queue import Queue
 from bs4 import BeautifulSoup
 import urllib
 from SpiderConfig import SpiderConfig
-
+import dnscache
+dnscache._setDNSCache()  # 启用dns缓存
+import asyncio
+import sys
 #线程锁
 lock = threading.Lock()
 spiderconf = SpiderConfig()
@@ -22,10 +25,10 @@ class SuperSpider(threading.Thread):
     def run(self):
         print("Start--a threads")
         while True:
-            #try:
+            try:
                 crawler(self.que)
-            #except:
-             #   break
+            except:
+                break
         print("Exiting One Threads")
 
 
@@ -42,24 +45,60 @@ def download(url):
                 flag=False
                 #要智能点，可以在这里加一个403判断，如果status_code是403则启用代理
         except:
-            spiderconf.setproxy(getproxy())#切换代理
+           # spiderconf.setproxy(getproxy())#切换代理
+            continue
     return res
+
+'''
+format url
+'''
+def format(url):
+    urlformat=urllib.parse.urlsplit(url)
+    netloc=urlformat[1]
+    path=urlformat[2]
+    query=urlformat[3]
+    temp=(netloc,tuple([len(i) for i in path.split('/')]),tuple(sorted([i.split('=')[0] for i in query.split('&')])))
+    return temp
+'''
+test==>http://www.baidu.com/zsdlove/hello/fuck?talk=1&nice=sldk&like=nnnsd2
+format==>('www.baidu.com', (0, 7, 5, 4), ('like', 'nice', 'talk'))
+similar julging==>similar_set   a global set
+'''
+
+'''
+去相似url
+'''
+def IsSimilarURL(url):
+    urlformat=format(url)
+    if urlformat not in spiderconf.similar_set:
+        spiderconf.similar_set.add(urlformat)
+        return True
+    else:
+        return False
+    return False
+
+
+def saveurl(newurl):
+    if newurl.endswith('xml') or newurl.endswith('pom'):
+        res = download(newurl)
+        spiderconf.getsavefile().write(newurl + "\n")
+        spiderconf.getsavefile().write(res.text + "\n")
 
 #往队列里添加url
 def doqueput(urls,que):
     for  newurl in urls:
         if IsSpidered(newurl) and IsOverDeep(newurl):
-            if newurl.endswith('xml') or newurl.endswith('pom'):
-                res=download(newurl)
-                spiderconf.getsavefile().write(newurl + "\n")
-                spiderconf.getsavefile().write(res.text + "\n")
+            saveurl(newurl)#保存xml和pom结尾文件，后期可以增加图片等
         if IsSpidered(newurl) and IsOverDeep(newurl):
-            #print("checked，新url，没错")
-            que.put(newurl)
+            putURL2que(que,newurl)
             spiderconf.oldurl.append(newurl)
             print("已经爬取"+str(len(spiderconf.oldurl))+"条连接")
             print("将新url放到que中：" + newurl)
             print("队列大小:"+str(que.qsize()))
+
+#往队列里添加url
+def putURL2que(que,newurl):
+    que.put(newurl)
 
 # 解析url，放入队列
 def parseURL(que, urls):
@@ -69,17 +108,22 @@ def getdomain(url):
     domain=urllib.parse.urlsplit(url)[1]
     return domain
 
-# 爬虫主程序
-#url解析策略目前只提取判断a中的全路径的url
-'''
-                       else:
-                           if '../' not in url:
-                               url=baseurl+url
-                               newurls.append(url)
-'''
+
+def getNewUrl(que):
+    url=''
+    try:
+        with lock:
+            if que.qsize!=0:
+                url = que.get(timeout=3)
+            else:
+                print("队列已经空了")
+    except:
+        print('扫描结束')
+        sys.exit()
+
+    return url
 def crawler(que):
-    with lock:
-            baseurl = que.get(timeout=3)
+            baseurl=getNewUrl(que)
             content = download(baseurl).content
             soup = BeautifulSoup(content, 'html.parser')
             AllHrefTag = soup.find_all('a')
@@ -87,9 +131,9 @@ def crawler(que):
             for hreftag in AllHrefTag:
                  try:
                        url = str(hreftag['href'])
-                       if "http:" in url and isinnerurl(url):
+                       if "http:" in url and isinnerurl(url) and IsSimilarURL(url):
                            newurls.append(url)
-                       elif "https:" in url and isinnerurl(url):
+                       elif "https:" in url and isinnerurl(url) and IsSimilarURL(url):
                            newurls.append(url)
                  except:
                    continue
@@ -178,12 +222,12 @@ def Main():
     爬虫全局配置
     '''
     spiderconf.setdomain(getdomain(url))  #设置域名
-    spiderconf.setdeep(100)                 #设置爬行深度
+    spiderconf.setdeep(5)                 #设置爬行深度
     spiderconf.setque(10000000)             #设置队列大小
-    spiderconf.setthreadsNum(5)           #设置线程数量
+    spiderconf.setthreadsNum(20)           #设置线程数量
     spiderconf.getque().put(url)          #将域名push到队列中
     spiderconf.setproxyswitch(False)       #打开/关闭代理，默认是关闭
-    spiderconf.setproxy(getproxy())       #设置代理
+    #spiderconf.setproxy(getproxy())       #设置代理
     startspider()                         #开始扫描
     spiderconf.setfinishedtime(time.time())
 
@@ -191,4 +235,4 @@ def Main():
     print("The total time is:", spiderconf.getfinishedtime() - spiderconf.starttime)
 
 if __name__ == '__main__':
-    Main()
+   Main()
