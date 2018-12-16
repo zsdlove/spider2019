@@ -23,13 +23,14 @@ class SuperSpider(threading.Thread):
         self.que = que
 
     def run(self):
-        print("Start--a threads")
+        print("Start--thread:"+self.name)
         while True:
             try:
                 crawler(self.que)
             except:
+
                 break
-        print("Exiting One Threads")
+        print("线程："+self.name+"结束~~")
 
 
 #下载页面内容
@@ -111,16 +112,13 @@ def getdomain(url):
 
 def getNewUrl(que):
     url=''
-    try:
-        with lock:
-            if que.qsize!=0:
-                url = que.get(timeout=3)
-            else:
-                print("队列已经空了")
-    except:
-        print('扫描结束')
-        sys.exit()
-
+    with lock:
+            flag=True
+            while(flag):#直到取出的是没有爬取过的
+                tmp = que.get(timeout=3)
+                if IsSimilarURL(tmp):
+                    url=tmp
+                    flag=False
     return url
 def crawler(que):
             baseurl=getNewUrl(que)
@@ -131,9 +129,9 @@ def crawler(que):
             for hreftag in AllHrefTag:
                  try:
                        url = str(hreftag['href'])
-                       if "http:" in url and isinnerurl(url) and IsSimilarURL(url):
+                       if "http:" in url and isinnerurl(url):
                            newurls.append(url)
-                       elif "https:" in url and isinnerurl(url) and IsSimilarURL(url):
+                       elif "https:" in url and isinnerurl(url):
                            newurls.append(url)
                  except:
                    continue
@@ -192,7 +190,7 @@ def getproxy():
     return ipdic
 
 '''
-平衡线程池
+平衡线程池,not used,bak
 '''
 def BalanceThreadsPool(SpiderConfig):
     if len(SpiderConfig.getthreadspool())<SpiderConfig.getthreadsNum():
