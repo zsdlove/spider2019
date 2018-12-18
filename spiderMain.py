@@ -1,4 +1,9 @@
 # -- coding:utf-8 --
+'''
+@author:Pony@moresec.com
+@time:2018.12.16
+'''
+import socket
 import threading
 import requests
 import time
@@ -8,8 +13,7 @@ import urllib
 from SpiderConfig import SpiderConfig
 import dnscache
 dnscache._setDNSCache()  # 启用dns缓存
-import asyncio
-import sys
+import portScan
 #线程锁
 lock = threading.Lock()
 spiderconf = SpiderConfig()
@@ -28,7 +32,6 @@ class SuperSpider(threading.Thread):
             try:
                 crawler(self.que)
             except:
-
                 break
         print("线程："+self.name+"结束~~")
 
@@ -39,10 +42,10 @@ def download(url):
     while(flag):
         try:
             if spiderconf.getproxystatus():#判断是否启用了代理
-                res=requests.get(url,timeout=4,proxies=spiderconf.getproxy())
+                res=requests.get(url,timeout=4,proxies=spiderconf.getproxy(),cookies=spiderconf.getcookie())
                 flag=False
             else:
-                res=requests.get(url,timeout=4)
+                res=requests.get(url,timeout=4,cookies=spiderconf.getcookie())
                 flag=False
                 #要智能点，可以在这里加一个403判断，如果status_code是403则启用代理
         except:
@@ -124,7 +127,9 @@ def crawler(que):
             baseurl=getNewUrl(que)
             content = download(baseurl).content
             soup = BeautifulSoup(content, 'html.parser')
-            AllHrefTag = soup.find_all('a')
+            AllHrefTag1 = soup.find_all('a')
+            AllHrefTag2=soup.find_all('A')
+            AllHrefTag=AllHrefTag1+AllHrefTag2
             newurls = []
             for hreftag in AllHrefTag:
                  try:
@@ -133,6 +138,10 @@ def crawler(que):
                            newurls.append(url)
                        elif "https:" in url and isinnerurl(url):
                            newurls.append(url)
+                       elif url.startswith('/'):
+                           newurls.append(baseurl+url)
+                       #elif baseurl.endswith('.html')==False or baseurl.endswith('.htm')==False:
+                                #newurls.append(baseurl+url)
                  except:
                    continue
             newurls=set(newurls)
@@ -212,10 +221,16 @@ def startspider():
     for t in spiderconf.getthreadspool():
         t.join()
 
+#获取目标域名的ip地址
+def gettargetIP(domain):
+    result = socket.getaddrinfo(domain, None)
+    print(result[0][4][0])
+    targetip=result[0][4][0]
+    return result
+
 #爬虫主函数
 def Main():
     url = 'http://www.freebuf.com'
-
     '''
     爬虫全局配置
     '''
@@ -226,6 +241,12 @@ def Main():
     spiderconf.getque().put(url)          #将域名push到队列中
     spiderconf.setproxyswitch(False)       #打开/关闭代理，默认是关闭
     #spiderconf.setproxy(getproxy())       #设置代理
+    spiderconf.setcookie('')               #设置cookie，用于登陆扫描
+    spiderconf.setportrange([20,1000])
+    portScan.startPortScan(
+        gettargetIP(spiderconf.getdomain()),#spiderconf.gettargetip()
+        spiderconf.getstartIP(),
+        spiderconf.getendIP())
     startspider()                         #开始扫描
     spiderconf.setfinishedtime(time.time())
 
@@ -234,3 +255,4 @@ def Main():
 
 if __name__ == '__main__':
    Main()
+   print(len(spiderconf.oldurl))

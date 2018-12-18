@@ -2,10 +2,14 @@
 from queue import Queue
 import time
 '''
+@author:Pony@moresec.com
+@time:2018.12.16
+配置清单：
 配置队列大小
 配置爬行深度
 配置域名
 配置线程数
+blabla
 '''
 class SpiderConfig:
 
@@ -34,6 +38,17 @@ class SpiderConfig:
 
         self.similar_set=set()
 
+        self.cookie=''
+
+        self.targetip=""
+
+        self.portrange=[]
+
+    def setportrange(self,portrange):
+        self.portrange=portrange
+
+    def setcookie(self,cookie):#设置cookie
+        self.cookie=cookie
 
     def setproxyswitch(self,bol):
         self.proxyswitch=bol
@@ -62,6 +77,9 @@ class SpiderConfig:
 
     def setthreadsNum(self,threadsNum):
         self.threadsNum=threadsNum
+
+    def getcookie(self):
+        return self.cookie
 
     def getthreadspool(self):
         return self.threadspool
@@ -92,4 +110,10 @@ class SpiderConfig:
 
     def getproxystatus(self):
         return self.proxyswitch
+
+    def getstartIP(self):#获取端口范围
+        return self.portrange[0]
+
+    def getendIP(self):
+        return self.portrange[1]
 
